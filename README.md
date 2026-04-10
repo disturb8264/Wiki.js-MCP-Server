@@ -55,6 +55,18 @@ docker run --rm \
   wikijs-mcp-server
 ```
 
+Run with Docker Compose:
+
+```bash
+docker compose up -d --build
+```
+
+If host port `8000` is already in use:
+
+```bash
+MCP_HTTP_PORT=18000 docker compose up -d --build
+```
+
 ## Tools
 
 - `wikijs_health`: Check Wiki.js connectivity.

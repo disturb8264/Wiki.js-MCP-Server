@@ -39,3 +39,23 @@ Health check:
 ```bash
 curl http://127.0.0.1:8000/health
 ```
+
+## Docker Compose
+
+From the repository root:
+
+```bash
+docker compose up -d --build
+```
+
+If host port `8000` is already in use:
+
+```bash
+MCP_HTTP_PORT=18000 docker compose up -d --build
+```
+
+Stop:
+
+```bash
+docker compose down
+```

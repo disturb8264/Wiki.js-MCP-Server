@@ -1,0 +1,29 @@
+services:
+  wikijs-mcp:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    image: wikijs-mcp-server:latest
+    container_name: wikijs-mcp-server
+    env_file:
+      - .env
+    environment:
+      MCP_HOST: 0.0.0.0
+      MCP_PORT: "8000"
+      MCP_PATH: ${MCP_PATH:-/mcp}
+      WIKIJS_LOCALE: ${WIKIJS_LOCALE:-ko}
+    ports:
+      - "${MCP_HTTP_PORT:-8000}:8000"
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "from urllib.request import urlopen; urlopen('http://127.0.0.1:8000/health', timeout=2).read()",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
