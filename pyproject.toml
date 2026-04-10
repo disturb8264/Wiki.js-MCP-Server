@@ -1,0 +1,18 @@
+[project]
+name = "wikijs-mcp"
+version = "0.1.0"
+description = "FastMCP HTTP server for controlling Wiki.js through its GraphQL API."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "fastmcp>=3.2.3",
+    "httpx>=0.28.1",
+    "python-dotenv>=1.1.0",
+]
+
+[project.scripts]
+wikijs-mcp = "wikijs_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
