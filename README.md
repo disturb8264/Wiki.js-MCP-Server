@@ -39,6 +39,18 @@ MCP_HOST=0.0.0.0 MCP_PORT=8787 MCP_PATH=/mcp python -m wikijs_mcp.server
 
 ## Docker
 
+Docker Hub image:
+
+```text
+https://hub.docker.com/r/disturb8264/wikijs-mcp-server
+```
+
+Pull the published image:
+
+```bash
+docker pull disturb8264/wikijs-mcp-server:latest
+```
+
 Build from the repository root:
 
 ```bash
@@ -52,7 +64,7 @@ docker run --rm \
   --name wikijs-mcp-server \
   -p 8000:8000 \
   --env-file .env \
-  wikijs-mcp-server
+  disturb8264/wikijs-mcp-server:latest
 ```
 
 Run with Docker Compose:
