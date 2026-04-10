@@ -37,6 +37,24 @@ Override server settings with environment variables:
 MCP_HOST=0.0.0.0 MCP_PORT=8787 MCP_PATH=/mcp python -m wikijs_mcp.server
 ```
 
+## Docker
+
+Build from the repository root:
+
+```bash
+docker build -f docker/Dockerfile -t wikijs-mcp-server .
+```
+
+Run with your local `.env`:
+
+```bash
+docker run --rm \
+  --name wikijs-mcp-server \
+  -p 8000:8000 \
+  --env-file .env \
+  wikijs-mcp-server
+```
+
 ## Tools
 
 - `wikijs_health`: Check Wiki.js connectivity.
