@@ -40,6 +40,10 @@ Health check:
 curl http://127.0.0.1:8000/health
 ```
 
+Uploaded Wiki.js assets are sent through the Wiki.js `/u` endpoint. The MCP
+upload tool accepts base64 file content and returns asset metadata, a URL, and
+a Markdown image/link snippet.
+
 ## Docker Compose
 
 From the repository root:

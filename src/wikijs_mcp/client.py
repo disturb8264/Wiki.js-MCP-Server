@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import json
 import os
 from typing import Any
+from urllib.parse import urlsplit, urlunsplit
 
 import httpx
 
@@ -25,23 +27,30 @@ class WikiJSClient:
         self.token = token if token is not None else os.getenv("WIKIJS_API_TOKEN")
         self.timeout = timeout
 
-    def graphql(
-        self,
-        query: str,
-        variables: dict[str, Any] | None = None,
-    ) -> dict[str, Any]:
+    @property
+    def upload_url(self) -> str:
+        parts = urlsplit(self.url)
+        return urlunsplit((parts.scheme, parts.netloc, "/u", "", ""))
+
+    def headers(self) -> dict[str, str]:
         headers = {
             "Accept": "application/json",
             "Content-Type": "application/json",
         }
         if self.token:
             headers["Authorization"] = f"Bearer {self.token}"
+        return headers
 
+    def graphql(
+        self,
+        query: str,
+        variables: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         try:
             response = httpx.post(
                 self.url,
                 json={"query": query, "variables": variables or {}},
-                headers=headers,
+                headers=self.headers(),
                 timeout=self.timeout,
             )
             response.raise_for_status()
@@ -57,6 +66,38 @@ class WikiJSClient:
             raise WikiJSError(f"Wiki.js GraphQL errors: {payload['errors']}")
 
         return payload
+
+    def upload_asset(
+        self,
+        filename: str,
+        content: bytes,
+        mime_type: str,
+        folder_id: int = 0,
+    ) -> str:
+        headers = {}
+        if self.token:
+            headers["Authorization"] = f"Bearer {self.token}"
+
+        files = [
+            (
+                "mediaUpload",
+                (None, json.dumps({"folderId": folder_id}), "application/json"),
+            ),
+            ("mediaUpload", (filename, content, mime_type)),
+        ]
+
+        try:
+            response = httpx.post(
+                self.upload_url,
+                headers=headers,
+                files=files,
+                timeout=self.timeout,
+            )
+            response.raise_for_status()
+        except httpx.HTTPError as exc:
+            raise WikiJSError(f"Wiki.js asset upload failed: {exc}") from exc
+
+        return response.text.strip()
 
 
 def parse_tags(tags: str | list[str] | None) -> list[str]:
