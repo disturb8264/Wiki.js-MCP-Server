@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
+import mimetypes
 import os
 from typing import Any
 
@@ -146,6 +149,29 @@ mutation MovePage(
 }
 """.strip()
 
+LIST_ASSETS_QUERY = """
+query ListAssets($folderId: Int!, $kind: AssetKind!) {
+  assets {
+    list(folderId: $folderId, kind: $kind) {
+      id
+      filename
+      ext
+      kind
+      mime
+      fileSize
+      metadata
+      createdAt
+      updatedAt
+      folder {
+        id
+        slug
+        name
+      }
+    }
+  }
+}
+""".strip()
+
 
 load_dotenv()
 
@@ -272,6 +298,118 @@ def wikijs_move_page(
     }
     result = wikijs().graphql(MOVE_PAGE_MUTATION, variables)
     return result["data"]["pages"]["move"]
+
+
+def decode_base64_content(content_base64: str) -> bytes:
+    _, separator, encoded = content_base64.partition(",")
+    payload = (
+        encoded
+        if separator and content_base64.startswith("data:")
+        else content_base64
+    )
+    try:
+        return base64.b64decode(payload, validate=True)
+    except binascii.Error as exc:
+        raise ValueError("content_base64 must be valid base64.") from exc
+
+
+def infer_asset_kind(mime_type: str) -> str:
+    return "IMAGE" if mime_type.lower().startswith("image/") else "BINARY"
+
+
+def normalize_asset_kind(asset_kind: str) -> str:
+    normalized = asset_kind.upper()
+    if normalized not in {"IMAGE", "BINARY", "ALL"}:
+        raise ValueError("asset_kind must be IMAGE, BINARY, or ALL.")
+    return normalized
+
+
+def asset_url(filename: str, folder: dict[str, Any] | None) -> str:
+    if not folder:
+        return f"/{filename}"
+    slug = (folder.get("slug") or "").strip("/")
+    if not slug:
+        return f"/{filename}"
+    return f"/{slug}/{filename}"
+
+
+def asset_link(asset: dict[str, Any]) -> dict[str, Any]:
+    url = asset_url(asset["filename"], asset.get("folder"))
+    markdown = (
+        f"![{asset['filename']}]({url})"
+        if asset.get("kind") == "IMAGE"
+        else f"[{asset['filename']}]({url})"
+    )
+    return {
+        **asset,
+        "url": url,
+        "markdown": markdown,
+    }
+
+
+@mcp.tool
+def wikijs_list_assets(
+    folder_id: int = 0,
+    asset_kind: str = "IMAGE",
+) -> list[dict[str, Any]]:
+    """List Wiki.js assets in a media folder."""
+    resolved_kind = normalize_asset_kind(asset_kind)
+    result = wikijs().graphql(
+        LIST_ASSETS_QUERY,
+        {"folderId": folder_id, "kind": resolved_kind},
+    )
+    return [asset_link(asset) for asset in result["data"]["assets"]["list"]]
+
+
+@mcp.tool
+def wikijs_upload_asset(
+    filename: str,
+    content_base64: str,
+    mime_type: str | None = None,
+    folder_id: int = 0,
+    asset_kind: str | None = None,
+) -> dict[str, Any]:
+    """Upload an asset file to Wiki.js using the /u multipart endpoint."""
+    if "/" in filename or "\\" in filename:
+        raise ValueError("filename must not include path separators.")
+
+    guessed_mime = mimetypes.guess_type(filename)[0]
+    resolved_mime = mime_type or guessed_mime or "application/octet-stream"
+    resolved_kind = normalize_asset_kind(asset_kind or infer_asset_kind(resolved_mime))
+    content = decode_base64_content(content_base64)
+
+    client = wikijs()
+    upload_response = client.upload_asset(
+        filename=filename,
+        content=content,
+        mime_type=resolved_mime,
+        folder_id=folder_id,
+    )
+    assets_result = client.graphql(
+        LIST_ASSETS_QUERY,
+        {"folderId": folder_id, "kind": resolved_kind},
+    )
+    assets = assets_result["data"]["assets"]["list"]
+    matching_assets = [asset for asset in assets if asset["filename"] == filename]
+    uploaded_asset = matching_assets[-1] if matching_assets else None
+    linked_asset = asset_link(uploaded_asset) if uploaded_asset else None
+    url = linked_asset["url"] if linked_asset else asset_url(filename, None)
+    markdown = (
+        linked_asset["markdown"]
+        if linked_asset
+        else f"![{filename}]({url})"
+    )
+
+    return {
+        "upload_response": upload_response,
+        "asset": linked_asset,
+        "filename": filename,
+        "folder_id": folder_id,
+        "mime_type": resolved_mime,
+        "kind": resolved_kind,
+        "url": url,
+        "markdown": markdown,
+    }
 
 
 def main() -> None:

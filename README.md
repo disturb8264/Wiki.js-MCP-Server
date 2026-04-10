@@ -88,5 +88,29 @@ MCP_HTTP_PORT=18000 docker compose up -d --build
 - `wikijs_create_page`: Create a Markdown page.
 - `wikijs_update_page`: Update page fields by id.
 - `wikijs_move_page`: Move a page to a new path.
+- `wikijs_list_assets`: List uploaded Wiki.js assets.
+- `wikijs_upload_asset`: Upload an asset file from base64 content.
 
 Create, update, and move operations modify the real Wiki.js instance.
+
+## Asset Uploads
+
+`wikijs_upload_asset` sends files to Wiki.js through the `/u` upload endpoint.
+Pass file content as base64 so MCP clients can send the data as plain JSON.
+
+Example arguments:
+
+```json
+{
+  "filename": "image.png",
+  "content_base64": "iVBORw0KGgo...",
+  "mime_type": "image/png",
+  "folder_id": 0
+}
+```
+
+The tool returns the Wiki.js asset metadata, URL, and a Markdown snippet such as:
+
+```markdown
+![image.png](/image.png)
+```
